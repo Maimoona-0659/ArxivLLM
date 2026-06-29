@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArXivLLM - Research Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .arxiv-header { border-bottom: 2px solid #b31b1b; }
+        /* Optimized canvas rendering for more space */
+        canvas { 
+            width: 100% !important; 
+            max-width: 1000px; /* Increased max-width for better document view */
+            height: auto !important; 
+            margin: 0 auto 1.5rem auto; 
+            display: block;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            background-color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col">
+
+    <header class="arxiv-header bg-white p-4 flex justify-between items-center shadow-sm z-10">
+        <div class="flex items-center gap-2">
+            <span class="text-3xl font-bold text-[#b31b1b]">arXiv</span>
+            <span class="text-xl font-light">LLM Research Assistant</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <input id="apiKey" type="password" placeholder="Enter Gemini API Key" class="border p-2 rounded w-64 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+            <button id="connectBtn" class="bg-gray-200 px-4 py-2 rounded text-sm font-semibold hover:bg-gray-300 transition">Connect</button>
+            <div id="statusInd" class="w-4 h-4 rounded-full bg-gray-400"></div>
+        </div>
+    </header>
+
+    <main class="flex flex-1 overflow-hidden">
+        <aside class="w-64 border-r bg-white p-4 flex flex-col">
+            <h2 class="font-bold mb-4 uppercase text-xs tracking-widest text-gray-500">Documents</h2>
+            <input type="file" id="pdfUpload" multiple accept=".pdf" class="hidden">
+            <button onclick="document.getElementById('pdfUpload').click()" class="w-full bg-[#b31b1b] text-white py-2 rounded mb-4 hover:bg-red-800 transition">Upload PDFs</button>
+            <ul id="docList" class="space-y-2 overflow-y-auto flex-1"></ul>
+        </aside>
+
+        <!-- Viewer Section -->
+        <section id="viewerSection" class="flex-[2] bg-gray-200 overflow-y-auto p-8">
+            <div id="viewer" class="w-full flex flex-col">
+                <p class="text-center mt-20 text-gray-500">Select a PDF to view.</p>
+            </div>
+        </section>
+
+        <!-- Chat Section (Narrowed) -->
+        <section class="w-72 border-l bg-white flex flex-col">
+            <div id="chatBox" class="flex-1 p-4 overflow-y-auto space-y-4 text-sm"></div>
+            <div class="p-4 border-t">
+                <input id="userMsg" type="text" placeholder="Ask about the research..." class="w-full border p-2 rounded">
+            </div>
+        </section>
+    </main>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const viewer = document.getElementById('viewer');
+        
+        document.getElementById('pdfUpload').onchange = (e) => {
+            Array.from(e.target.files).forEach(file => {
+                const li = document.createElement('li');
+                li.className = "cursor-pointer p-2 hover:bg-red-50 rounded text-sm border-b truncate";
+                li.textContent = file.name;
+                li.onclick = () => renderPDF(file);
+                document.getElementById('docList').appendChild(li);
+            });
+        };
+
+        async function renderPDF(file) {
+            const url = URL.createObjectURL(file);
+            const pdf = await pdfjsLib.getDocument(url).promise;
+            viewer.innerHTML = '<p class="text-center text-gray-500">Loading document...</p>';
+            viewer.innerHTML = '';
+            
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                viewer.appendChild(canvas);
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+            }
+        }
+    </script>
+</body>
+</html>
